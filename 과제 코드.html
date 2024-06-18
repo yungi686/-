@@ -1,0 +1,179 @@
+import React from 'react';
+import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+import MovieList from './components/MovieList';
+import MovieDetail from './components/MovieDetail';
+import AddReview from './components/AddReview';
+
+function App() {
+  return (
+    <Router>
+      <div>
+        <Switch>
+          <Route path="/" exact component={MovieList} />
+          <Route path="/movie/:id" component={MovieDetail} />
+          <Route path="/add-review" component={AddReview} />
+        </Switch>
+      </div>
+    </Router>
+  );
+}
+
+export default App;
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { Link } from 'react-router-dom';
+
+function MovieList() {
+  const [movies, setMovies] = useState([]);
+
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/movies')
+      .then(response => {
+        setMovies(response.data);
+      })
+      .catch(error => {
+        console.error('There was an error fetching the movie list!', error);
+      });
+  }, []);
+
+  return (
+    <div>
+      <h1>Movie List</h1>
+      <ul>
+        {movies.map(movie => (
+          <li key={movie._id}>
+            <Link to={`/movie/${movie._id}`}>{movie.title}</Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default MovieList;
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import { useParams } from 'react-router-dom';
+
+function MovieDetail() {
+  const { id } = useParams();
+  const [movie, setMovie] = useState(null);
+
+  useEffect(() => {
+    axios.get(`http://localhost:5000/api/movies/${id}`)
+      .then(response => {
+        setMovie(response.data);
+      })
+      .catch(error => {
+        console.error('There was an error fetching the movie details!', error);
+      });
+  }, [id]);
+
+  if (!movie) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <div>
+      <h1>{movie.title}</h1>
+      <p>{movie.description}</p>
+      <h2>Reviews</h2>
+      <ul>
+        {movie.reviews.map(review => (
+          <li key={review._id}>{review.text}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default MovieDetail;
+import React, { useState } from 'react';
+import axios from 'axios';
+
+function AddReview() {
+  const [movieId, setMovieId] = useState('');
+  const [text, setText] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    axios.post('http://localhost:5000/api/reviews', { movieId, text })
+      .then(response => {
+        console.log('Review added:', response.data);
+      })
+      .catch(error => {
+        console.error('There was an error adding the review!', error);
+      });
+  };
+
+  return (
+    <div>
+      <h1>Add Review</h1>
+      <form onSubmit={handleSubmit}>
+        <div>
+          <label>Movie ID:</label>
+          <input
+            type="text"
+            value={movieId}
+            onChange={(e) => setMovieId(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Review:</label>
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          ></textarea>
+        </div>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+  );
+}
+
+export default AddReview;
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+
+mongoose.connect('mongodb://localhost:27017/moviereviews', { useNewUrlParser: true, useUnifiedTopology: true });
+
+const movieSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  reviews: [{ text: String }]
+});
+
+const Movie = mongoose.model('Movie', movieSchema);
+
+app.get('/api/movies', async (req, res) => {
+  const movies = await Movie.find();
+  res.json(movies);
+});
+
+app.get('/api/movies/:id', async (req, res) => {
+  const movie = await Movie.findById(req.params.id);
+  res.json(movie);
+});
+
+app.post('/api/reviews', async (req, res) => {
+  const { movieId, text } = req.body;
+  const movie = await Movie.findById(movieId);
+  movie.reviews.push({ text });
+  await movie.save();
+  res.json(movie);
+});
+
+app.listen(5000, () => {
+  console.log('Server is running on port 5000');
+});
+cd backend
+node index.js
+cd movie-review-site
+npm start
